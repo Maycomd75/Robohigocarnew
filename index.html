@@ -49,7 +49,7 @@ const horariosDisponiveis = ["08:00","10:00","12:00","14:00","16:00","18:00"];
 
 // === GOOGLE SHEETS ===
 function salvarNoSheets(cliente) {
-  fetch("https://script.google.com/macros/s/AKfycbyAq34SHpCL_HKN21KJXCYaeu95j_xjG6oOB7OyQrcnytOQowO3w19l8GmzhqvBxwg1/exec", {
+  fetch("https://script.google.com/macros/s/AKfycbw0UC1pjlmkMC3ZiNvykKkeURHk4ZAiAKT62VEpr95kOZW7wOmhDPoDR9z1kGsX6hNw/exec", {
     method: "POST",
     body: JSON.stringify({
       nome: cliente.nome,
@@ -224,7 +224,6 @@ function gerarPDF() {
   doc.text(`Cliente: ${cliente.nome}`, 14, 40);
   doc.text(`Placa: ${cliente.placa}`, 14, 48);
   doc.text(`Modelo: ${cliente.modelo}`, 14, 56);
-  doc.text(`Telefone: ${cliente.telefone}`, 14, 64);
 
   let startY = 80;
   doc.setFillColor(0, 0, 0);
