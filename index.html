@@ -45,8 +45,8 @@ const servicos = {
   "5": { nome: "Suspensão", valor: 200 }
 };
 
-// === API DO GOOGLE SHEETS (substitua pelo SEU URL do Apps Script) ===
-const API_URL = "https://script.google.com/macros/s/SEU_DEPLOY_ID/exec";
+// === API DO GOOGLE SHEETS (substitua pelo SEU URL do Web App) ===
+const API_URL = "https://script.google.com/macros/s/AKfycbzoRi0eld3rUlBGbP2Lkc-Tn-w0XncNMbtQscYVpsYXzvaKO0UrXmcaIPrc6zbbUsZ9/exec";
 
 function salvarNoSheets(cliente) {
   fetch(API_URL, {
@@ -181,58 +181,54 @@ function handleFlow(text) {
       break;
     case "modeloAgendamento":
       cliente.modelo = text;
-      carregarDatasDisponiveis();
+      carregarDisponiveis();
       break;
   }
 }
 
 /* ==========================
-   AGENDAMENTO
+   AGENDAMENTO - NOVA ABORDAGEM
 ========================== */
-function carregarDatasDisponiveis() {
-  fetch(API_URL + "?action=datas")
+function carregarDisponiveis() {
+  fetch(API_URL) // retorna JSON com todos os horários livres [{data:"01/10/2025", hora:"08:00"}, ...]
     .then(res => res.json())
-    .then(datas => {
+    .then(lista => {
+      const agrupados = {};
+      lista.forEach(item => {
+        if (!agrupados[item.data]) agrupados[item.data] = [];
+        agrupados[item.data].push(item.hora);
+      });
+
       botTyping("Escolha uma data disponível:");
       setTimeout(() => {
-        datas.forEach(data => {
+        Object.keys(agrupados).forEach(data => {
           const btn = document.createElement("button");
           btn.className = "option-btn";
           btn.textContent = data;
           btn.onclick = () => {
             addMessage(data, "user");
             cliente.data = data;
-            carregarHorariosDisponiveis(data);
-          };
-          chat.appendChild(btn);
-        });
-      }, 500);
-      step = "dataAgendamento";
-    });
-}
-
-function carregarHorariosDisponiveis(data) {
-  fetch(API_URL + "?action=horarios&data=" + data)
-    .then(res => res.json())
-    .then(horarios => {
-      botTyping(`Escolha um horário disponível para ${data}:`);
-      setTimeout(() => {
-        horarios.forEach(hora => {
-          const btn = document.createElement("button");
-          btn.className = "option-btn";
-          btn.textContent = hora;
-          btn.onclick = () => {
-            addMessage(hora, "user");
-            cliente.hora = hora;
-            botTyping(`✅ Agendamento concluído!\nNome: ${cliente.nome}\nPlaca: ${cliente.placa}\nModelo: ${cliente.modelo}\nData: ${cliente.data}\nHorário: ${cliente.hora}`);
-            salvarNoSheets(cliente);
-            step = "end";
+            botTyping(`Escolha um horário disponível para ${data}:`);
+            agrupados[data].forEach(hora => {
+              const btnHora = document.createElement("button");
+              btnHora.className = "option-btn";
+              btnHora.textContent = hora;
+              btnHora.onclick = () => {
+                addMessage(hora, "user");
+                cliente.hora = hora;
+                botTyping(`✅ Agendamento concluído!\nNome: ${cliente.nome}\nPlaca: ${cliente.placa}\nModelo: ${cliente.modelo}\nData: ${cliente.data}\nHorário: ${cliente.hora}`);
+                salvarNoSheets(cliente);
+                step = "end";
+              };
+              chat.appendChild(btnHora);
+            });
           };
           chat.appendChild(btn);
         });
       }, 500);
       step = "horaAgendamento";
-    });
+    })
+    .catch(err => botTyping("❌ Não foi possível carregar os horários. Tente novamente mais tarde."));
 }
 
 /* ==========================
@@ -240,27 +236,23 @@ function carregarHorariosDisponiveis(data) {
 ========================== */
 function gerarPDF() {
   const doc = new jsPDF();
-
   doc.setFillColor(30, 80, 180);
   doc.rect(0, 0, 210, 25, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(16);
   doc.text("Hiago Car - Orçamento de Serviços", 105, 16, { align: "center" });
-
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(12);
   doc.text(`Cliente: ${cliente.nome}`, 14, 40);
   doc.text(`Placa: ${cliente.placa}`, 14, 48);
   doc.text(`Modelo: ${cliente.modelo}`, 14, 56);
   doc.text(`Telefone: (63) 99264-5216`, 14, 64);
-
   let startY = 80;
   doc.setFillColor(0, 0, 0);
   doc.setTextColor(255, 255, 255);
   doc.rect(14, startY, 182, 10, "F");
   doc.text("Serviço", 20, startY + 7);
   doc.text("Valor (R$)", 190, startY + 7, { align: "right" });
-
   let y = startY + 15;
   let total = 0;
   cliente.servicos.forEach((s, i) => {
@@ -274,17 +266,14 @@ function gerarPDF() {
     total += s.valor;
     y += 10;
   });
-
   y += 5;
   doc.setFillColor(30, 80, 180);
   doc.rect(14, y - 6, 182, 10, "F");
   doc.setTextColor(255, 255, 255);
   doc.text(`TOTAL: R$ ${total.toFixed(2)}`, 190, y, { align: "right" });
-
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.text("Obrigado por escolher a Hiago Car", 105, 290, { align: "center" });
-
   doc.save(`Orcamento_${cliente.nome}.pdf`);
 }
 
